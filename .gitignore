@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────────────────
+#  報告筆記系統 — .gitignore
+# ─────────────────────────────────────────────────────────────
+
+# 執行期資料庫 —— 絕對不要提交，裡面有所有帳號與報告內容
+server/data/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# 資料庫備份（server/backup.js 產生）
+backup-*.db
+
+# 單一實例鎖檔
+server.lock
+**/server.lock
+
+# 機密與環境設定（邀請碼、管理員密碼等，用環境變數或 .env，勿入庫）
+.env
+.env.*
+!.env.example
+secrets.json
+
+# 記錄檔
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node 相依套件（本專案目前用 node 內建 sqlite，未來若加套件會用到）
+node_modules/
+.npm/
+.pnp.*
+.yarn/
+
+# 建置／暫存輸出
+dist/
+build/
+tmp/
+temp/
+*.tmp
+
+# 編輯器／IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 作業系統產生的雜檔
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code 個人本機設定（權限白名單等，因人而異）
+.claude/settings.local.json
