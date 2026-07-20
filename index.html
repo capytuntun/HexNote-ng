@@ -9,7 +9,7 @@
   <title>報告筆記系統</title>
   <link rel="icon" href="favicon.ico">
   <link rel="stylesheet" href="vendor/hljs-github.min.css" id="hljs-theme-light">
-  <link rel="stylesheet" href="app.css?v=62">
+  <link rel="stylesheet" href="app.css?v=64">
 </head>
 <body>
   <!-- Login gate: shown until /api/me returns a user -->
@@ -115,6 +115,15 @@
         <input id="search-input" type="text" placeholder="搜尋筆記…（Ctrl+K）"
                autocomplete="off" spellcheck="false" aria-label="搜尋筆記">
         <button id="search-clear" class="search-clear" title="清除搜尋" hidden>✕</button>
+      </div>
+      <!-- 批次操作列：勾選筆記後出現，可整批移動到資料夾或刪除 -->
+      <div id="batch-bar" class="batch-bar" hidden>
+        <span class="batch-count"></span>
+        <div class="batch-actions">
+          <button id="batch-move" class="batch-btn" type="button" title="移動所選筆記到資料夾">📁 移動</button>
+          <button id="batch-delete" class="batch-btn danger" type="button" title="刪除所選筆記">🗑 刪除</button>
+          <button id="batch-clear" class="batch-btn ghost" type="button" title="取消選取">✕</button>
+        </div>
       </div>
       <div id="tree" class="tree" data-root="true"></div>
       <div id="search-results" class="search-results" hidden></div>
@@ -269,9 +278,9 @@
   <script src="js/secreport.js?v=41"></script>
   <script src="js/seceditor.js?v=41"></script>
   <script src="js/perfreport.js?v=41"></script>
-  <script src="js/dashboard.js?v=47"></script>
+  <script src="js/dashboard.js?v=48"></script>
   <script src="js/annotate.js?v=41"></script>
   <script src="js/pdf.js?v=41"></script>
-  <script src="js/app.js?v=51"></script>
+  <script src="js/app.js?v=53"></script>
 </body>
 </html>

@@ -499,7 +499,7 @@
     elm.addEventListener('click', function () { navigate(folder.id); });
     return elm;
   }
-  function makeNoteEl(note, onOpen) {
+  function makeNoteEl(note, onOpen, selection) {
     const k = noteKind(note);
     const title = esc(note.title || '未命名筆記');
     const time = esc(relTime(note.updatedAt));
@@ -519,12 +519,30 @@
     }
     elm.type = 'button';
     elm.addEventListener('click', function () { onOpen(note.id); });
-    return elm;
+
+    // 只有自己的筆記才能批次選取；用外層包一個勾選框（放在 button 外避免巢狀互動）
+    if (!selection || !isMine(note)) return elm;
+    const wrap = el('div', 'dash-note-wrap ' + (viewMode === 'card' ? 'card' : 'list'));
+    wrap.dataset.id = note.id;
+    if (selection.has(note.id)) wrap.className += ' selected';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'dash-note-check';
+    cb.checked = selection.has(note.id);
+    cb.title = '選取';
+    cb.addEventListener('click', function (e) { e.stopPropagation(); });
+    cb.addEventListener('change', function () {
+      selection.toggle(note.id, cb.checked);
+      wrap.classList.toggle('selected', cb.checked);
+    });
+    wrap.appendChild(cb);
+    wrap.appendChild(elm);
+    return wrap;
   }
 
-  function renderBrowser(notes, folders, onOpen) {
+  function renderBrowser(notes, folders, onOpen, selection) {
     // 標籤篩選模式：忽略資料夾，平列所有帶該標籤的筆記
-    if (tagFilter) return renderTagResults(notes, onOpen);
+    if (tagFilter) return renderTagResults(notes, onOpen, selection);
 
     // 目前資料夾若已被刪除，退回最上層
     if (curFolderId && !folderById(folders, curFolderId)) curFolderId = null;
@@ -563,13 +581,13 @@
         '還沒有筆記，從左側「＋ 筆記」或上方的報告模式開始吧。'));
     }
     subs.forEach(function (f) { body.appendChild(makeFolderEl(f, countNotesDeep(notes, folders, f.id))); });
-    ns.forEach(function (n) { body.appendChild(makeNoteEl(n, onOpen)); });
+    ns.forEach(function (n) { body.appendChild(makeNoteEl(n, onOpen, selection)); });
     box.appendChild(body);
     return box;
   }
 
   // 標籤篩選結果（平列所有帶 tagFilter 的筆記）
-  function renderTagResults(notes, onOpen) {
+  function renderTagResults(notes, onOpen, selection) {
     const box = el('div', 'dash-card');
     const head = el('div', 'dash-card-head dash-browser-head');
     const banner = el('div', 'dash-tag-banner');
@@ -593,7 +611,7 @@
     if (!matches.length) {
       body.appendChild(el('div', 'dash-empty', '沒有帶有 #' + esc(tagFilter) + ' 的筆記。'));
     }
-    matches.forEach(function (n) { body.appendChild(makeNoteEl(n, onOpen)); });
+    matches.forEach(function (n) { body.appendChild(makeNoteEl(n, onOpen, selection)); });
     box.appendChild(body);
     return box;
   }
@@ -605,18 +623,19 @@
     const root = document.getElementById('dashboard');
     if (!root || !lastOpts) return;
     const notes = lastOpts.notes, folders = lastOpts.folders, onOpen = lastOpts.onOpen;
+    const selection = lastOpts.selection;
     root.innerHTML = '';
     root.appendChild(el('div', 'dash-title', '📊 總覽'));
     root.appendChild(renderVizSplit(notes, folders, onOpen));
     const cloud = renderTagCloud(notes);
     if (cloud) root.appendChild(cloud);
-    root.appendChild(renderBrowser(notes, folders, onOpen));
+    root.appendChild(renderBrowser(notes, folders, onOpen, selection));
   }
   function render(opts) {
     const notes = (opts && opts.notes) || [];
     const folders = (opts && opts.folders) || [];
     const onOpen = (opts && opts.onOpen) || function () {};
-    lastOpts = { notes: notes, folders: folders, onOpen: onOpen };
+    lastOpts = { notes: notes, folders: folders, onOpen: onOpen, selection: opts && opts.selection };
     tagFilter = null;
     paint();
   }

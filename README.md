@@ -8,7 +8,7 @@
 node server/server.js
 ```
 
-然後開瀏覽器到它印出的網址（預設 http://localhost:8080）即可。
+預設網址為 http://localhost:8080
 預設帳號密碼為(admin:admin)
 
 ## 系統畫面

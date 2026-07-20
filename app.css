@@ -355,6 +355,50 @@ mark.search-hit {
 .tree-row .ic { font-size: 15px; flex: 0 0 auto; }
 .tree-row.drop-target { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-weak); }
 
+/* 批次選取：勾選框 + 已選高亮 */
+.note-check {
+  flex: 0 0 auto; width: 15px; height: 15px; margin: 0; cursor: pointer;
+  accent-color: var(--accent);
+}
+.tree-row.note-row.selected { background: var(--accent-weak); }
+.tree-row.note-row.selected .label { color: var(--accent); }
+
+/* 批次操作列（勾選後出現於樹狀清單上方）*/
+.batch-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 4px 8px 0; padding: 6px 8px;
+  background: var(--accent-weak); border: 1px solid var(--accent);
+}
+.batch-count { font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.batch-actions { display: flex; gap: 4px; flex: 0 0 auto; }
+.batch-btn {
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  cursor: pointer; font-family: inherit; font-size: 13px; padding: 3px 8px; border-radius: 0;
+}
+.batch-btn:hover { background: var(--row-hover); border-color: var(--border-strong); }
+.batch-btn.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+.batch-btn.ghost { color: var(--text-dim); }
+.folder-picker {
+  width: 100%; padding: 8px 9px; border: 1px solid var(--border); border-radius: 0;
+  background: var(--bg); color: var(--text); font-size: 15px; font-family: inherit; outline: none;
+}
+.folder-picker:focus { border-color: var(--accent); }
+
+/* 儀表板「所有筆記」的批次勾選（卡片＝角落浮貼、條列＝左側並排）*/
+.dash-note-check { width: 15px; height: 15px; margin: 0; cursor: pointer; accent-color: var(--accent); }
+.dash-note-wrap.card { position: relative; display: flex; }
+.dash-note-wrap.card > .dash-tile { width: 100%; }
+.dash-note-wrap.card > .dash-note-check {
+  position: absolute; top: 8px; left: 8px; z-index: 2;
+  background: var(--bg); box-shadow: 0 0 0 2px var(--bg);
+}
+.dash-note-wrap.card.selected > .dash-tile { border-color: var(--accent); background: var(--accent-weak); }
+.dash-note-wrap.list { display: flex; align-items: center; gap: 8px; }
+.dash-note-wrap.list > .dash-note-check { flex: 0 0 auto; margin-left: 8px; }
+.dash-note-wrap.list > .dash-row { flex: 1 1 auto; min-width: 0; }
+.dash-note-wrap.list.selected { background: var(--accent-weak); }
+.dash-note-wrap.list.selected .dash-row-title { color: var(--accent); }
+
 .row-actions { display: none; gap: 1px; flex: 0 0 auto; margin-left: 4px; }
 .tree-row:hover .row-actions { display: inline-flex; }
 .row-act {

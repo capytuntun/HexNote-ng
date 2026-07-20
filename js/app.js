@@ -40,6 +40,7 @@
   const presenceEl = $('#presence');
   const editorAreaEl = $('#editor-area');
   const notePathEl = $('#note-path');
+  const selected = new Set();   // 批次選取的筆記 id
 
   // ---- Note links --------------------------------------------------------
   function normTitle(t) { return String(t || '').trim().toLowerCase(); }
@@ -133,6 +134,7 @@
       treeEl.appendChild(head);
       shared.forEach(function (n) { treeEl.appendChild(buildNoteRow(n)); });
     }
+    pruneSelection();   // 同步批次列（丟掉已不存在的選取）
   }
 
   function buildLevel(parentId) {
@@ -190,14 +192,29 @@
     const row = document.createElement('div');
     const mine = isMine(note);
     row.className = 'tree-row note-row' + (note.id === state.currentId ? ' active' : '') +
-      (mine ? '' : ' shared-row');
+      (mine ? '' : ' shared-row') + (selected.has(note.id) ? ' selected' : '');
     row.draggable = mine;   // dragging a shared note into my folders would do nothing
     row.dataset.type = 'note';
     row.dataset.id = note.id;
-    row.innerHTML =
+    // 只有自己的筆記才有勾選框（批次移動／刪除都需要擁有權）
+    const checkHtml = mine
+      ? '<input type="checkbox" class="note-check" title="選取"' + (selected.has(note.id) ? ' checked' : '') + '>'
+      : '';
+    row.innerHTML = checkHtml +
       '<span class="ic">' + (mine ? '📄' : (note.perm === 'edit' ? '✍' : '🔒')) + '</span>' +
       '<span class="label">' + MD.escapeHtml(note.title || '未命名筆記') + '</span>' +
       (mine ? '' : '<span class="share-by">' + MD.escapeHtml(note.sharedBy || '') + '</span>');
+    const cb = row.querySelector('.note-check');
+    if (cb) {
+      // 點框只切換選取，不要順便打開筆記
+      cb.addEventListener('click', function (e) { e.stopPropagation(); });
+      cb.addEventListener('change', function () {
+        if (cb.checked) selected.add(note.id); else selected.delete(note.id);
+        row.classList.toggle('selected', cb.checked);
+        syncDashCheck(note.id, cb.checked);   // 反映到儀表板「所有筆記」
+        updateBatchBar();
+      });
+    }
     row.addEventListener('click', function () { openNote(note.id); });
     row.addEventListener('contextmenu', function (e) { showCtx(e, 'note', note); });
     attachDrag(row, 'note', note.id);
@@ -268,6 +285,146 @@
     }
   }
 
+  // ---- 批次選取：勾選筆記後整批移動到資料夾或刪除 -----------------------
+  function updateBatchBar() {
+    const bar = document.getElementById('batch-bar');
+    if (!bar) return;
+    bar.hidden = selected.size === 0;
+    const c = bar.querySelector('.batch-count');
+    if (c) c.textContent = '已選 ' + selected.size + ' 篇';
+  }
+  function clearSelection() {
+    selected.clear();
+    treeEl.querySelectorAll('.note-row.selected').forEach(function (r) {
+      r.classList.remove('selected');
+      const cb = r.querySelector('.note-check'); if (cb) cb.checked = false;
+    });
+    updateBatchBar();
+  }
+  // 丟掉已不存在（或非自己）的筆記 id，避免選取殘留
+  function pruneSelection() {
+    const valid = {};
+    state.notes.forEach(function (n) { if (isMine(n)) valid[n.id] = true; });
+    Array.from(selected).forEach(function (id) { if (!valid[id]) selected.delete(id); });
+    updateBatchBar();
+  }
+  // 側邊欄該列的勾選狀態同步（供儀表板那邊改動時反映）
+  function syncTreeCheck(id, on) {
+    const row = treeEl.querySelector('.note-row[data-id="' + id + '"]');
+    if (!row) return;
+    row.classList.toggle('selected', on);
+    const c = row.querySelector('.note-check'); if (c) c.checked = on;
+  }
+  // 儀表板「所有筆記」那邊該筆記的勾選狀態同步（供側邊欄改動時反映）
+  function syncDashCheck(id, on) {
+    const w = document.querySelector('#dashboard .dash-note-wrap[data-id="' + id + '"]');
+    if (!w) return;
+    w.classList.toggle('selected', on);
+    const c = w.querySelector('.dash-note-check'); if (c) c.checked = on;
+  }
+  // 給儀表板用的選取 API（讓「所有筆記」也能勾選、共用同一份選取與批次列）
+  const selectionApi = {
+    has: function (id) { return selected.has(id); },
+    toggle: function (id, on) {
+      if (on) selected.add(id); else selected.delete(id);
+      syncTreeCheck(id, on);   // 反映到側邊欄
+      updateBatchBar();
+    }
+  };
+  // 批次動作後同時刷新側邊欄與（若正在顯示的）儀表板
+  function refreshViews() {
+    renderTree();
+    if (!emptyEl.hidden && window.Dashboard) {
+      Dashboard.render({ notes: state.notes, folders: state.folders, onOpen: openNote, selection: selectionApi });
+    }
+  }
+
+  function batchDelete() {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    showConfirm({
+      title: '刪除筆記',
+      message: '確定刪除所選的 ' + ids.length + ' 篇筆記？\n此動作無法復原。',
+      ok: '刪除', danger: true
+    }).then(function (ok) {
+      if (!ok) return;
+      Promise.all(ids.map(function (id) { return Store.deleteNote(id).catch(function () {}); })).then(function () {
+        const gone = {};
+        ids.forEach(function (id) { gone[id] = true; });
+        state.notes = state.notes.filter(function (n) { return !gone[n.id]; });
+        if (state.currentId && gone[state.currentId]) showEmpty();
+        selected.clear();
+        refreshViews();
+      });
+    });
+  }
+
+  function batchMove() {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    showFolderPicker('移動 ' + ids.length + ' 篇筆記到…').then(function (res) {
+      if (!res) return;                                  // 取消
+      const target = res.folderId || null;
+      const jobs = [];
+      ids.forEach(function (id) {
+        const n = state.notes.find(function (x) { return x.id === id; });
+        if (n && isMine(n) && (n.folderId || null) !== target) {
+          n.folderId = target;
+          jobs.push(Store.updateNote(n).catch(function () {}));
+        }
+      });
+      Promise.all(jobs).then(function () {
+        selected.clear();
+        refreshViews();
+      });
+    });
+  }
+
+  // 資料夾完整路徑名（給選單顯示，例：外層 / 內層）
+  function folderFullName(id) {
+    const parts = [];
+    let cur = id, guard = 0;
+    while (cur && guard++ < 50) {
+      const f = state.folders.find(function (x) { return x.id === cur; });
+      if (!f) break;
+      parts.unshift(f.name || '');
+      cur = f.parentId || null;
+    }
+    return parts.join(' / ');
+  }
+  // 選資料夾對話框：resolve({folderId}) 或 resolve(null)（取消）
+  function showFolderPicker(title) {
+    return new Promise(function (resolve) {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      const opts = ['<option value="">（最上層）</option>'];
+      state.folders.slice().sort(function (a, b) {
+        return folderFullName(a.id).localeCompare(folderFullName(b.id), 'zh-Hant');
+      }).forEach(function (f) {
+        opts.push('<option value="' + f.id + '">' + MD.escapeHtml(folderFullName(f.id)) + '</option>');
+      });
+      modal.innerHTML =
+        '<div class="modal-title">' + MD.escapeHtml(title || '移動到資料夾') + '</div>' +
+        '<div class="modal-body"><select class="folder-picker">' + opts.join('') + '</select></div>' +
+        '<div class="modal-actions">' +
+        '<button class="btn modal-cancel" type="button">取消</button>' +
+        '<button class="btn btn-primary modal-ok" type="button">移動</button>' +
+        '</div>';
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      const sel = modal.querySelector('.folder-picker');
+      function close(val) { overlay.remove(); document.removeEventListener('keydown', onKey, true); resolve(val); }
+      function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(null); } }
+      document.addEventListener('keydown', onKey, true);
+      overlay.addEventListener('mousedown', function (e) { if (e.target === overlay) close(null); });
+      modal.querySelector('.modal-cancel').addEventListener('click', function () { close(null); });
+      modal.querySelector('.modal-ok').addEventListener('click', function () { close({ folderId: sel.value || null }); });
+      setTimeout(function () { sel.focus(); }, 30);
+    });
+  }
+
   // Allow dropping onto empty tree area => move to root
   treeEl.addEventListener('dragover', function (e) { if (dragData) { e.preventDefault(); } });
   treeEl.addEventListener('drop', function (e) {
@@ -309,7 +466,7 @@
     if (secWrapEl) secWrapEl.hidden = true;
     if (perfWrapEl) perfWrapEl.hidden = true;
     if (window.Dashboard) {
-      Dashboard.render({ notes: state.notes, folders: state.folders, onOpen: openNote });
+      Dashboard.render({ notes: state.notes, folders: state.folders, onOpen: openNote, selection: selectionApi });
     }
   }
 
@@ -1646,6 +1803,11 @@
     if (shareBtn) shareBtn.addEventListener('click', function () {
       if (state.current && isMine(state.current)) showShareDialog(state.current);
     });
+
+    // 批次操作列
+    const bMove = $('#batch-move'); if (bMove) bMove.addEventListener('click', batchMove);
+    const bDel = $('#batch-delete'); if (bDel) bDel.addEventListener('click', batchDelete);
+    const bClr = $('#batch-clear'); if (bClr) bClr.addEventListener('click', clearSelection);
 
     // 收合鈕現在在全域頂列、永遠可見，因此改為切換（收合 ↔ 展開）
     const collapseBtn = $('#sidebar-collapse');
