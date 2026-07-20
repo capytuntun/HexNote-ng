@@ -1,6 +1,6 @@
-# HexNote
+# StrikeNote
 >[!note]
->有鑑於HackMD越來越爛，故自行用AI寫了一個HexNote，以符合自己的筆記需求，這個筆記軟體是以Markdown為基礎的筆記，同時支援生成OSCP、OSEP、LPT\CPENT跟Virtual Hacking Lab的筆記模板，並且支援生成資安院攻防演練模式的報告
+>有鑑於HackMD越來越爛，故自行用AI寫了一個StrikeNote，以符合自己的筆記需求，這個筆記軟體是以Markdown為基礎的筆記，同時支援生成OSCP、OSEP、LPT\CPENT跟Virtual Hacking Lab的筆記模板，並且支援生成資安院攻防演練模式的報告
 
 
 裝好 Node.js 後，在資料夾中執行：
